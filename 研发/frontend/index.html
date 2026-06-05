@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG 知识库助手</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app minimal">
+    <header class="top">
+      <div>
+        <h1>RAG 知识库助手</h1>
+      </div>
+      <div class="status"><span class="dot"></span><span id="serviceStatus">待检查</span></div>
+    </header>
+
+    <section class="card chat-card">
+      <div class="chat" id="chat"></div>
+      <div class="composer">
+        <textarea id="question" placeholder="请输入你的问题..."></textarea>
+        <button class="btn-primary" id="btnSend">发送</button>
+      </div>
+      <div class="answer-actions">
+        <button class="btn-warn" id="btnShowRetrieved" disabled>查看检索内容</button>
+      </div>
+      <div class="tiny" id="metaLine"></div>
+    </section>
+
+    <div class="modal-backdrop" id="retrievedModal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="retrievedModalTitle">
+        <div class="modal-header">
+          <h2 id="retrievedModalTitle">检索内容</h2>
+          <button class="btn-secondary" id="btnCloseRetrieved">关闭</button>
+        </div>
+        <div class="modal-body" id="retrievedModalBody">
+          <div class="modal-section">
+            <div class="modal-section-title">相关检索</div>
+            <div class="modal-section-body" id="retrievedRelevantBody"></div>
+          </div>
+          <div class="modal-section">
+            <div class="modal-section-title">无关检索</div>
+            <div class="modal-section-body" id="retrievedIrrelevantBody"></div>
+          </div>
+          <div class="modal-section">
+            <div class="modal-section-title">长期记忆</div>
+            <div class="modal-section-body" id="retrievedMemoryBody"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <details class="card settings">
+      <summary>高级设置</summary>
+      <div class="settings-body">
+        <div class="toolbar-grid">
+          <input id="baseUrl" value="http://127.0.0.1:8002" aria-label="后端地址" />
+          <select id="roleName" aria-label="角色">
+            <option value="assistant">assistant</option>
+            <option value="lawyer">lawyer</option>
+            <option value="doctor">doctor</option>
+          </select>
+          <input id="topK" type="number" value="8" min="1" max="50" aria-label="top_k" />
+          <input id="bm25TopK" type="number" value="30" min="1" max="200" aria-label="bm25_top_k" />
+          <input id="rerankTopK" type="number" value="5" min="1" max="50" aria-label="rerank_top_k" />
+          <input id="maxTokens" type="number" value="1024" min="1" max="4096" aria-label="max_tokens" />
+        </div>
+
+        <div class="toolbar-actions">
+          <button class="btn-secondary" id="btnStream">流式回答</button>
+          <button class="btn-secondary" id="btnChat">普通回答</button>
+          <button class="btn-danger" id="btnReset">重置会话</button>
+          <button class="btn-secondary" id="btnHealth">检查服务</button>
+        </div>
+
+        <div class="tiny" id="hint">提示：先确认后端已启动，然后直接提问。</div>
+
+        <div class="panel">
+          <div class="section-title">
+            <h2>快捷提问</h2>
+            <button class="btn-secondary" id="btnRefreshQuick">刷新快捷提问</button>
+          </div>
+          <div class="toolbar-actions" style="margin-bottom: 10px;">
+            <button class="btn-secondary quick-filter" data-category="law">法律</button>
+            <button class="btn-secondary quick-filter" data-category="medical">医疗</button>
+            <button class="btn-secondary quick-filter" data-category="assistant">通用</button>
+          </div>
+          <div class="chips" id="chips">
+            <div class="chip">农业垃圾回收归哪个部门管？</div>
+            <div class="chip">高血压危险分层怎么判断？</div>
+            <div class="chip">合同违约责任有哪些？</div>
+            <div class="chip">医生回答会保存到长期记忆吗？</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="section-title"><h2>最近检索结果</h2><span class="badge" id="retrievedCount">0</span></div>
+          <div class="retrieved-box" id="retrievedPanel"><div class="footer-note">回答后会显示最近一次检索结果。</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="section-title"><h2>性能统计</h2><span class="badge">实时</span></div>
+          <div class="metrics-grid" id="metricsGrid">
+            <div class="metric"><span>总检索</span><strong id="metricRetrievalMs">-</strong></div>
+            <div class="metric"><span>向量召回</span><strong id="metricDenseMs">-</strong></div>
+            <div class="metric"><span>BM25 召回</span><strong id="metricBm25Ms">-</strong></div>
+            <div class="metric"><span>记忆召回</span><strong id="metricMemoryMs">-</strong></div>
+            <div class="metric"><span>重排</span><strong id="metricRerankMs">-</strong></div>
+            <div class="metric"><span>Prompt 字符</span><strong id="metricPromptChars">-</strong></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="section-title"><h2>Prompt 预览</h2><span class="badge">调试</span></div>
+          <div class="footer-note" id="promptPreview">暂无预览内容。</div>
+        </div>
+      </div>
+    </details>
+  </div>
+  <script src="./app.js"></script>
+</body>
+</html>

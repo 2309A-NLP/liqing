@@ -1,0 +1,6 @@
+Streaming plan:
+- add /chat/stream SSE endpoint
+- stream meta event first
+- stream delta chunks from DeepSeek
+- stream done event with final answer and retrieval metadata
+- frontend reads stream and updates assistant bubble incrementally

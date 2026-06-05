@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG 问答系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0f0f0f; --bg-secondary: #1a1a1a; --bg-tertiary: #242424;
+            --bg-hover: #2a2a2a; --text-primary: #e8e8e8; --text-secondary: #9a9a9a;
+            --text-muted: #666; --accent: #3b82f6; --accent-hover: #2563eb;
+            --accent-dim: rgba(59,130,246,0.12); --border: #2a2a2a;
+            --user-bubble: #2563eb; --assistant-bg: #1e1e1e;
+            --success: #22c55e; --error: #ef4444; --radius-sm: 8px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+               background: var(--bg-primary); color: var(--text-primary);
+               height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .header { background: var(--bg-secondary); border-bottom: 1px solid var(--border);
+                  padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        .header h1 { font-size: 16px; font-weight: 600; }
+        .header h1 span { color: var(--text-secondary); font-weight: 400; font-size: 13px; margin-left: 6px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); display: inline-block; transition: background 0.3s; }
+        .status-dot.ok { background: var(--success); }
+        .status-dot.err { background: var(--error); }
+        .status-text { font-size: 12px; color: var(--text-muted); }
+        .main { flex: 1; display: flex; overflow: hidden; }
+        .chat-area { flex: 1; display: flex; flex-direction: column; max-width: 860px; margin: 0 auto; width: 100%; padding: 0 20px; }
+        .chat-box { flex: 1; overflow-y: auto; padding: 24px 0; scroll-behavior: smooth; }
+        .chat-box::-webkit-scrollbar { width: 6px; }
+        .chat-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 24px; }
+        .empty-icon { font-size: 48px; opacity: 0.3; }
+        .empty-title { font-size: 18px; font-weight: 600; color: var(--text-secondary); }
+        .empty-sub { font-size: 13px; color: var(--text-muted); }
+        .suggestions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 600px; }
+        .suggestion { background: var(--bg-tertiary); border: 1px solid var(--border);
+                      color: var(--text-secondary); padding: 8px 16px; border-radius: 20px;
+                      font-size: 13px; cursor: pointer; transition: all 0.2s; }
+        .suggestion:hover { background: var(--accent-dim); border-color: var(--accent); color: var(--text-primary); }
+        .message { margin-bottom: 20px; animation: msgIn 0.3s ease-out; }
+        @keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .message.user { display: flex; justify-content: flex-end; }
+        .message.assistant { display: flex; justify-content: flex-start; }
+        .msg-content { max-width: 720px; width: fit-content; }
+        .user .msg-content { background: var(--user-bubble); color: #fff; padding: 10px 16px;
+                             border-radius: 16px 16px 4px 16px; font-size: 14px; line-height: 1.6; }
+        .assistant .msg-content { background: var(--assistant-bg); border: 1px solid var(--border);
+                                  border-radius: 16px 16px 16px 4px; padding: 16px 20px;
+                                  font-size: 14px; line-height: 1.7; }
+        .assistant .msg-content p { margin-bottom: 8px; }
+        .assistant .msg-content p:last-child { margin-bottom: 0; }
+        .assistant .msg-content ul, .assistant .msg-content ol { margin: 8px 0; padding-left: 20px; }
+        .assistant .msg-content code { background: var(--bg-tertiary); padding: 2px 6px; border-radius: 4px;
+                                       font-family: "SF Mono", monospace; font-size: 13px; color: #e06c75; }
+        .assistant .msg-content pre { background: var(--bg-primary); border: 1px solid var(--border);
+                                      border-radius: var(--radius-sm); padding: 12px; margin: 8px 0; overflow-x: auto; }
+        .assistant .msg-content pre code { background: none; padding: 0; color: var(--text-primary); }
+        .assistant .msg-content table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+        .assistant .msg-content th, .assistant .msg-content td { border: 1px solid var(--border); padding: 6px 10px; }
+        .assistant .msg-content th { background: var(--bg-tertiary); }
+        .sources { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+        .sources-title { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+        .source-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+        .source-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--accent-dim);
+                       color: var(--accent); padding: 3px 10px; border-radius: 12px; font-size: 11px; }
+        .loading { display: flex; gap: 4px; padding: 4px 0; }
+        .loading span { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); animation: typing 1.2s infinite; }
+        .loading span:nth-child(2) { animation-delay: 0.2s; }
+        .loading span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing { 0%,60%,100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-4px); opacity: 1; } }
+        .input-area { padding: 16px 0 24px; flex-shrink: 0; }
+        .input-wrapper { display: flex; align-items: flex-end; gap: 10px; background: var(--bg-tertiary);
+                         border: 1px solid var(--border); border-radius: 16px; padding: 8px 8px 8px 16px; transition: border-color 0.2s; }
+        .input-wrapper:focus-within { border-color: var(--accent); }
+        .input-wrapper textarea { flex: 1; border: none; outline: none; background: transparent; color: var(--text-primary);
+                                  font-size: 14px; line-height: 1.5; resize: none; max-height: 120px; min-height: 24px; font-family: inherit; }
+        .input-wrapper textarea::placeholder { color: var(--text-muted); }
+        .send-btn { width: 36px; height: 36px; border-radius: 10px; border: none; background: var(--accent);
+                    color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
+        .send-btn:hover { background: var(--accent-hover); }
+        .send-btn:disabled { background: var(--bg-hover); color: var(--text-muted); cursor: not-allowed; }
+        .send-btn svg { width: 18px; height: 18px; }
+        .input-hint { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+        @media (max-width: 640px) { .chat-area { padding: 0 12px; } .msg-content { max-width: 90% !important; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>RAG 问答系统<span>· 非流式</span></h1>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <span class="status-dot" id="statusDot"></span>
+            <span class="status-text" id="statusText">检查连接...</span>
+        </div>
+    </div>
+    <div class="main">
+        <div class="chat-area">
+            <div class="chat-box" id="chatBox">
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-icon">📄</div>
+                    <div class="empty-title">基于招股说明书的智能问答</div>
+                    <div class="empty-sub">输入问题，系统检索文档并生成回答</div>
+                    <div class="suggestions" id="suggestions"></div>
+                </div>
+            </div>
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <textarea id="questionInput" rows="1" placeholder="输入问题..." disabled oninput="autoResize(this)"></textarea>
+                    <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
+                </div>
+                <div class="input-hint">Enter 发送 · Shift+Enter 换行 · <a href="/stream" style="color:var(--accent)">切换流式模式</a></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const SUGGESTIONS = ["公司的注册资本是多少？","报告期内军用领域收入分别是多少？","公司法定代表人是谁？","电子信息行业的上游涉及哪些企业？","公司参与了哪个荣获国家科技进步一等奖的工程？"];
+        const sessionId = 's_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 4);
+        const chatBox = document.getElementById('chatBox');
+        const input = document.getElementById('questionInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+
+        SUGGESTIONS.forEach(q => {
+            const btn = document.createElement('div');
+            btn.className = 'suggestion'; btn.textContent = q;
+            btn.onclick = () => { input.value = q; sendMessage(); };
+            document.getElementById('suggestions').appendChild(btn);
+        });
+
+        async function checkHealth() {
+            try {
+                const r = await fetch('/health'); const data = await r.json();
+                statusDot.className = 'status-dot ok';
+                const docs = (data.milvus||'').match(/\d+/);
+                statusText.textContent = docs ? docs[0]+' 条文档就绪' : '已连接';
+                input.disabled = false; sendBtn.disabled = false; input.focus();
+            } catch(e) { statusDot.className = 'status-dot err'; statusText.textContent = '服务未就绪'; }
+        }
+        checkHealth();
+
+        function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; }
+        function escHtml(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+        function scrollBottom() { requestAnimationFrame(()=>{ chatBox.scrollTop=chatBox.scrollHeight; }); }
+        function hideEmpty() { const e=document.getElementById('emptyState'); if(e) e.remove(); }
+
+        function addMessage(role, content, sources) {
+            hideEmpty();
+            const div = document.createElement('div');
+            div.className = 'message ' + role;
+            if (role === 'user') {
+                div.innerHTML = `<div class="msg-content">${escHtml(content)}</div>`;
+            } else {
+                let html = `<div class="msg-content">${marked.parse(content)}</div>`;
+                if (sources && sources.length) {
+                    html += `<div class="sources"><div class="sources-title">引用来源</div><div class="source-chips">`;
+                    sources.forEach(s => { html += `<span class="source-chip">📌 第${s.page_no}页</span>`; });
+                    html += `</div></div>`;
+                }
+                div.innerHTML = html;
+            }
+            chatBox.appendChild(div);
+            scrollBottom();
+        }
+
+        async function sendMessage() {
+            const question = input.value.trim();
+            if (!question) return;
+            addMessage('user', question);
+            input.value = ''; input.style.height='auto';
+            input.disabled = true; sendBtn.disabled = true;
+
+            const loading = document.createElement('div');
+            loading.className = 'message assistant';
+            loading.innerHTML = `<div class="msg-content"><div class="loading"><span></span><span></span><span></span></div></div>`;
+            chatBox.appendChild(loading); scrollBottom();
+
+            try {
+                const r = await fetch('/query', { method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({question, session_id: sessionId}) });
+                const data = await r.json();
+                loading.remove();
+                addMessage('assistant', data.answer, data.sources);
+            } catch(e) {
+                loading.remove();
+                addMessage('assistant', '❌ 请求失败: ' + e.message);
+            }
+            input.disabled = false; sendBtn.disabled = false; input.focus();
+        }
+
+        input.addEventListener('keydown', e => { if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+        if (typeof marked !== 'undefined') marked.setOptions({ breaks: true, gfm: true });
+    </script>
+</body>
+</html>

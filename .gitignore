@@ -1,0 +1,30 @@
+# 大文件
+*.jsonl
+*.pkl
+*.pth
+*.bin
+*.safetensors
+*.onnx
+minerU_output/
+
+# 模型文件
+*.pt
+*.ckpt
+*.h5
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.idea/
+.vscode/
+
+# 环境
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db

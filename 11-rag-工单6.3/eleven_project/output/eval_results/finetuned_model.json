@@ -1,0 +1,11 @@
+{
+  "model": "/mnt/d/Desktop/eleven_project/output/bge-base-zh-v1.5-finetuned",
+  "corpus_file": "/mnt/d/Desktop/eleven_project/data/test_corpus.jsonl",
+  "test_file": "/mnt/d/Desktop/eleven_project/data/test_queries.jsonl",
+  "num_corpus": 22133,
+  "num_queries": 1592,
+  "metrics": {
+    "Recall@10": 0.8078,
+    "NDCG@10": 0.6034
+  }
+}

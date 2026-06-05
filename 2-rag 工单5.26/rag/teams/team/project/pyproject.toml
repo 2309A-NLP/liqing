@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=64.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "rag-question-answering"
+version = "1.0.0"
+description = "基于 PDF 文档的 RAG 问答系统"
+requires-python = ">=3.10"
+dependencies = [
+    "pymupdf>=1.27.0",
+    "sentence-transformers>=3.0.0",
+    "pymilvus>=2.4.0",
+    "rank-bm25>=0.2.2",
+    "redis>=5.0.0",
+    "httpx>=0.27.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "langchain-text-splitters>=0.3.0",
+    "jieba>=0.42.1",
+    "tqdm>=4.66.0",
+]
+
+[project.scripts]
+rag-api = "src.api.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
